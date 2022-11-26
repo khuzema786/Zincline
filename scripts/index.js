@@ -1,10 +1,11 @@
 const util = require("util");
 const exec = util.promisify(require("child_process").exec);
-const { readdir, readFile, writeFile, watch } = require("fs/promises");
-const { compress } = require("compress-images/promise");
+const { readdir, readFile, writeFile } = require("fs/promises");
+const { watch } = require("chokidar");
 const { minify: htmlminify } = require("html-minifier");
 const { minify: cssminify } = require("csso");
 const { minify: jsminify } = require("uglify-js");
+const { readdirSync } = require("fs");
 
 const isDevelopment = process.argv[3] === "--development";
 
@@ -52,7 +53,7 @@ const main = async () => {
     .toString()
     .replace("{{header}}", header.toString())
     .replace("{{footer}}", footer.toString())
-    .replace(
+    .replaceAll(
       "{{products}}",
       Object.keys(products)
         .map(
@@ -60,14 +61,14 @@ const main = async () => {
             `<li>
                   <a href="${key
                     .toLowerCase()
-                    .replace(" ", "-")}.html">${key}</a>
+                    .replaceAll(" ", "-")}.html">${key}</a>
               </li>`
         )
         .join("\n")
     );
 
   await exec(
-    `rm -rf "${dirname}/dist" && 
+    `rm -rf "${dirname}/dist/*" && 
     mkdir -p "${dirname}/dist" && 
     cp -r "${dirname}/src"/* "${dirname}/dist" && 
     rm -rf "${dirname}/dist/product-template.html" && 
@@ -84,15 +85,6 @@ const main = async () => {
   let galleryImgFiles = files.filter((file) =>
     file.match(/gallery\-.*(\.png|\.jpg|\.jpeg)$/gm)
   );
-  let portfolioImgFiles = files.filter((file) =>
-    file.match(/portfolio\-.*(\.png|\.jpg|\.jpeg)$/gm)
-  );
-
-  if (!isDevelopment) {
-    await exec(
-      `rm -rf "${dirname}/dist/assets/images" && mkdir "${dirname}/dist/assets/images"`
-    );
-  }
 
   for (let i = 0; i < htmlFiles.length; i++) {
     let data = await readFile(htmlFiles[i]);
@@ -101,36 +93,43 @@ const main = async () => {
       .replace("{{content}}", data.toString())
       .replace(
         "{{portfolio}}",
-        portfolioImgFiles
-          .map((portfolio) => {
-            let filterClass = portfolio
-              .split("/")
-              [portfolio.split("/").length - 1].split(".")[0]
-              .split("-");
-            filterClass = filterClass
-              .slice(0, filterClass.length - 1)
-              .join("-")
-              .toLowerCase();
-            let portfolioName = filterClass
-              .split("-")
-              .slice(1)
-              .map((el) => el.charAt(0).toUpperCase() + el.slice(1))
-              .join(" ");
-            return `<div class="item_pos col-lg-12">	
-        <div class="witr_single_pslide">	
-          <div class="witr_pslide_image">
-            <img src="assets/images/${
-              portfolio.split("/")[portfolio.split("/").length - 1]
-            }" alt="">
-          </div>
-          <div class="witr_content_pslide_text">
-            <div class="witr_content_pslide">
-              <h3>${portfolioName}</h3>
+        Object.keys(products)
+          .map((key) =>
+            products[key]
+              .map(({ name }) => {
+                let images = readdirSync(
+                  `${dirname}/dist/assets/images/products/${name.toLowerCase()}`
+                );
+                let htmlFile = Object.keys(products).reduce((acc, key) => {
+                  if (
+                    products[key].find(
+                      (product) =>
+                        product["name"].toLowerCase() === name.toLowerCase()
+                    )
+                  ) {
+                    acc = `${key.toLowerCase().replaceAll(" ", "-")}.html`;
+                  }
+                  return acc;
+                }, "");
+                return `<div class="item_pos col-lg-12">	
+        <div class="witr_single_pslide">
+          <a href="${htmlFile}#${name.toLowerCase()}">
+            <div class="witr_pslide_image">
+              <img src="assets/images/products/${name.toLowerCase()}/${
+                  images.length > 1 ? images[1] : images[0]
+                }" alt="">
             </div>
-          </div>	
+            <div class="witr_content_pslide_text">
+              <div class="witr_content_pslide">
+                <h3>${name}</h3>
+              </div>
+            </div>
+          </a>	
         </div> 
       </div>`;
-          })
+              })
+              .join("\n")
+          )
           .join("\n")
       )
       .replace(
@@ -228,39 +227,20 @@ const main = async () => {
     }
   }
 
-  if (!isDevelopment) {
-    await compress({
-      source: `${dirname}/src/assets/images/*.{jpg,JPG,jpeg,JPEG,png}`,
-      destination: `${dirname}/dist/assets/images/`,
-      // compression : 0 - 100
-      enginesSetup: {
-        // jpg: { engine: "mozjpeg", command: ["-quality", "60"] },
-        // png: { engine: "pngquant", command: ["--quality=20-50", "-o"] },
-        jpg: { engine: "mozjpeg", command: ["-quality", "10"] },
-        png: { engine: "pngquant", command: ["--quality=10-20", "-o"] },
-        svg: { engine: "svgo", command: "--multipass" },
-        gif: {
-          engine: "gifsicle",
-          command: ["--colors", "64", "--use-col=web"],
-        },
-      },
-    });
-
-    await exec(`rm -rf "${dirname}/log"`);
-  }
-
   Object.keys(products).map(async (key) => {
     let _productTemplate = productTemplate
       .toString()
       .replace("{{header}}", header.toString())
       .replace("{{footer}}", footer.toString())
-      .replace(
+      .replaceAll(
         "{{products}}",
         Object.keys(products)
           .map(
             (key) =>
               `<li>
-                <a href="${key.toLowerCase().replace(" ", "-")}.html">${key}</a>
+                <a href="${key
+                  .toLowerCase()
+                  .replaceAll(" ", "-")}.html">${key}</a>
             </li>`
           )
           .join("\n")
@@ -269,15 +249,16 @@ const main = async () => {
         "{{all-products}}",
         products[key]
           .map(
-            ({
-              name,
-              specifications,
-              description,
-              suitable,
-              features,
-              images,
-            }, i) =>
-              `<div class="witr_product_area container">
+            ({ name, specifications, description, suitable, features }, i) => {
+              let images = readdirSync(
+                `${dirname}/dist/assets/images/products/${name.toLowerCase()}`
+              );
+              images = images
+                ? images.map(
+                    (el) => `assets/images/products/${name.toLowerCase()}/${el}`
+                  )
+                : [];
+              return `<div class="witr_product_area container" id="${name.toLowerCase()}">
         <div class="witr_section_title_inner heading-section">
           <h3>${name}</h3>
         </div>
@@ -299,82 +280,107 @@ const main = async () => {
                         (image, idx) =>
                           `<div class = "img-item">
                       <a href = "#" data-id = "${idx + 1}">
-                        <img src = "${image}">
+                        <img src = "${image}"/>
                       </a>
                     </div>`
                       )
-                      .join("\n")
+                      .join("\n") +
+                    "</div>"
                   : ""
               }
-              </div>
             </div>
           </div>
           <div class="col-md-6">
-            <div class="product-dtl">
-              <p>${description}</p>
-            </div>
-            <div class="row">
-              <div class="col-md-6">
-                <h6>Features</h6>
-                <ul>
-                  ${features
-                    .map((feature) => `<li><p>${feature}</p></li>`)
-                    .join("\n")}
-                </ul>
-              </div>
-              <div class="col-md-6">
-                <h6>Suitable For</h6>
-                <ul>
-                  ${suitable
-                    .map((suitable) => `<li><p>${suitable}</p></li>`)
-                    .join("\n")}
-                </ul>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div class="product-info-tabs">
-          <ul class="nav nav-tabs" id="myTab" role="tablist">
-            <li class="nav-item">
-              <a class="nav-link active" id="specifications-tab" data-toggle="tab" href="#specifications" role="tab"
-                aria-controls="specifications" aria-selected="true">Specifications</a>
-            </li>
-          </ul>
-          <div class="tab-content" id="myTabContent">
-            <div class="tab-pane fade show active" id="specifications" role="tabpanel"
-              aria-labelledby="specifications-tab">
-              <div class="container table-responsive">
-                <table class="specs-table table table-bordered table-hover">
-                  <tbody>
-                    ${specifications
-                      .map(
-                        (specification) =>
-                          `<tr>
-                              <th scope="row">${specification.type}</th>
-                              <td>${specification.value}</td>
-                            </tr>`
-                      )
-                      .join("\n")}
-                  </tbody>
-                </table>
+            <div class="product-info-tabs">
+              <ul class="nav nav-tabs" id="myTab" role="tablist">
+                <li class="nav-item">
+                  <a class="nav-link active" id="specifications-tab" data-toggle="tab" href="#specifications" role="tab"
+                    aria-controls="specifications" aria-selected="true">Specifications</a>
+                </li>
+              </ul>
+              <div class="tab-content" id="myTabContent">
+                <div class="tab-pane fade show active" id="specifications" role="tabpanel"
+                  aria-labelledby="specifications-tab">
+                  <div class="container table-responsive">
+                    <table class="specs-table table table-bordered table-hover">
+                      <tbody>
+                        ${specifications
+                          .map(
+                            (specification) =>
+                              `<tr>
+                                  <th scope="row">${specification.type}</th>
+                                  <td>${specification.value}</td>
+                                </tr>`
+                          )
+                          .join("\n")}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
         </div>
-      </div>`
+        ${
+          description
+            ? `<div class="product-dtl">
+          <p>${description}</p>
+        </div>`
+            : ""
+        }
+         ${
+           features.length > 0 || suitable.length > 0
+             ? `<div class="row">
+           ${
+             features.length > 0
+               ? `<div class="${
+                   suitable.length > 0 ? "col-md-6" : "col-md-12"
+                 }">
+            <h6>Features</h6>
+            <ul>
+              ${features
+                .map(
+                  (feature) =>
+                    `<li><p class="mb-1"><b>-</b> ${feature}</p></li>`
+                )
+                .join("\n")}
+            </ul>
+          </div>`
+               : ""
+           }
+          ${
+            suitable.length > 0
+              ? `<div class="${features.length > 0 ? "col-md-6" : "col-md-12"}">
+            <h6>Suitable For</h6>
+            <ul>
+              ${suitable
+                .map(
+                  (suitable) =>
+                    `<li><p class="mb-1"><b>-</b> ${suitable}</p></li>`
+                )
+                .join("\n")}
+            </ul>
+          </div>`
+              : ""
+          }
+        </div>`
+             : ""
+         }
+      </div>`;
+            }
           )
           .join("\n")
       );
 
     if (isDevelopment) {
       await writeFile(
-        `${dirname}/dist/${key.toLowerCase().replace(" ", "-")}.html`,
+        `${dirname}/dist/${key.toLowerCase().replaceAll(" ", "-")}.html`,
         _productTemplate,
         { encoding: "utf8" }
       );
     } else {
       await writeFile(
-        `${dirname}/dist/${key.toLowerCase().replace(" ", "-")}.html`,
+        `${dirname}/dist/${key.toLowerCase().replaceAll(" ", "-")}.html`,
         htmlminify(_productTemplate, options),
         { encoding: "utf8" }
       );
@@ -386,11 +392,27 @@ const main = async () => {
   try {
     await main();
     if (process.argv[2] === "--watch") {
-      const watcher = watch(`${dirname}/src`, { recursive: true });
-      for await (const event of watcher) {
-        console.log(event);
-        await main();
-      }
+      const watcher = watch(`${dirname}/src`, {
+        ignored: /^\./,
+        persistent: true,
+      });
+      watcher
+        .on("add", async function (path) {
+          console.log("File", path, "has been added");
+          // await main();
+        })
+        .on("change", async function (path) {
+          console.log("File", path, "has been changed");
+          await main();
+        })
+        .on("unlink", async function (path) {
+          console.log("File", path, "has been removed");
+          await main();
+        })
+        .on("error", async function (error) {
+          console.error("Error happened", error);
+          await main();
+        });
     }
   } catch (err) {
     if (err.name === "AbortError") return;

@@ -4,8 +4,8 @@
   "description": "Zincline Product Website",
   "main": "dist/index.html",
   "scripts": {
-    "start": "node scripts/index.js && cd dist && browser-sync start -s -f . --no-notify",
-    "dev": "concurrently \"node scripts/index.js --watch --development\" \"mkdir -p dist && cd dist && browser-sync start -s -f . --no-notify --watch\"",
+    "serve": "cd dist && browser-sync start -s -f . --no-notify",
+    "start": "concurrently \"node scripts/index.js --watch --development\" \"mkdir -p dist && cd dist && browser-sync start -s -f . --no-notify --watch\"",
     "build": "node scripts/index.js"
   },
   "author": "Lakshita & Khuzema",

@@ -10,48 +10,53 @@ module.exports = (dirname) => {
   for (let i = 0; i < sheets.length; i++) {
     const temp = reader.utils.sheet_to_json(file.Sheets[file.SheetNames[i]]);
     const series = file.SheetNames[i];
-    
+
     allDone = 0;
-    while(temp) {
+    while (temp) {
       let products = temp.splice(0, 1);
-      const idx = temp.findIndex(el => el["Name"] !== undefined);
-      products = [ ...products, ...temp.splice(0, idx === -1 ? temp.length : idx) ]
+      const idx = temp.findIndex((el) => el["Name"] !== undefined);
+      products = [
+        ...products,
+        ...temp.splice(0, idx === -1 ? temp.length : idx),
+      ];
       const name = products[0]["Name"];
       const description = products[0]["Description"];
       const specifications = products.reduce(
         (acc, { Type, Value }) =>
-          Type && Value ? acc = [...acc, { type: Type, value: Value }] : acc,
+          Type && Value ? (acc = [...acc, { type: Type, value: Value }]) : acc,
         []
       );
       const features = products.reduce(
-        (acc, { Features }) => (Features ? acc = [...acc, Features] : acc),
+        (acc, { Features }) => (Features ? (acc = [...acc, Features]) : acc),
         []
       );
-      const suitable = products.reduce(
-        (acc, { Suitable }) => (Suitable ? acc = [...acc, Suitable] : acc),
+      let suitable = products.reduce(
+        (acc, { Suitable }) => (Suitable ? (acc = [...acc, Suitable]) : acc),
         []
       );
-      const images = products.reduce(
-        (acc, { Images }) => (Images ? acc = [...acc, `assets/images/${Images}`] : acc),
-        []
-      );
-
+      if (suitable.length === 1) {
+        if (
+          !specifications.find((el) => el["type"].toLowerCase() === "usage")
+        ) {
+          specifications.push({ type: "Usage", value: suitable[0] });
+          suitable = [];
+        }
+      }
       const product = {
         name,
         description,
         specifications,
         features,
         suitable,
-        images,
       };
-  
+
       result[series] = result[series]
         ? [...result[series], product]
         : [product];
-      
-      if(idx === -1) break;
+
+      if (idx === -1) break;
     }
   }
 
-  return result
+  return result;
 };

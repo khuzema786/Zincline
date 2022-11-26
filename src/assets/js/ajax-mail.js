@@ -13,7 +13,7 @@ $(function () {
     e.preventDefault();
     if (type.includes("mail")) {
       $.ajax({
-        url: "https://formsubmit.co/ajax/khomosikhuzema894@gmail.com",
+        url: "https://formsubmit.co/ajax/zinclineoverseas@gmail.com",
         method: "POST",
         data: {
           name: $("Name").val(),
@@ -22,7 +22,11 @@ $(function () {
           city: $("#City").val(),
           country: $("#Country").val(),
           zip: $("#Zip").val(),
-          "": $("#Message").val(),
+          message: $("#Message").val(),
+          _subject: "Zincline Contact Request!",
+          _autoresponse:
+            "We have recieved your query, our team will get back to you shortly.",
+          _template: "table",
         },
         dataType: "json",
         success: function (response) {
