@@ -6,7 +6,8 @@
   "scripts": {
     "serve": "cd dist && browser-sync start -s -f . --no-notify",
     "start": "concurrently \"node scripts/index.js --watch --development\" \"mkdir -p dist && cd dist && browser-sync start -s -f . --no-notify --watch\"",
-    "build": "node scripts/index.js"
+    "build": "node scripts/index.js",
+    "build:no-compress": "node scripts/index.js --no-image-compress"
   },
   "author": "Lakshita & Khuzema",
   "license": "ISC",
