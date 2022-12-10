@@ -7,6 +7,7 @@ require 'PHPMailer-master/src/SMTP.php';
 
 $name = $_POST["name"];
 $city = $_POST["city"];
+$state = $_POST["state"];
 $phone = $_POST["phone"];
 $email = $_POST["email"];
 $country = $_POST["country"];
@@ -41,7 +42,7 @@ $mail = new PHPMailer(true);
 	$mail->Body = 	'Message has been sent from your website <strong>www.zincline.in</strong>, as below details:<br/><br/>' 
 					.'<strong>Message: </strong>'.$message.'<br>'
 					.'<strong>Name: </strong>'.$name.'<br>'
-					.'<strong>Address: </strong>'.$city.', '.$country.', '.$zip.'<br>'
+					.'<strong>Address: </strong>'.$country.', '.$state.', '.$city.', '.$zip.'<br>'
 					.'<strong>Phone: </strong>'.$phone.'<br>'
 					.'<strong>Email: </strong>'.$email.'<br>';
     $mail->AltBody = 'This is the body in plain text for non-HTML mail clients';

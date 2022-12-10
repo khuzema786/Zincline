@@ -1,6 +1,9 @@
 (function($) {
     'use strict';
 
+	$(".preload-wrapper").hide()
+    $(".content").show()
+
     $('.hamburger').on('click', function() {
         $(this).toggleClass('is-active');
         $(this).next().toggleClass('nav-show')
@@ -1019,8 +1022,8 @@
 			$('.witr_cslide_idany').slick({
 				infinite: true,
 				autoplay: true,
-				autoplaySpeed: 2000,
-				speed: 1000,					
+				autoplaySpeed: 1000,
+				speed: 500,					
 				slidesToShow: 4,
 				slidesToScroll: 1,
 				arrows: true,
